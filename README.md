@@ -11,5 +11,6 @@ vi ~/.zshrc
 alias python="python3"
 alias py="python3"
 
+# 적용
 source ~/.zshrc
 ```
