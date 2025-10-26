@@ -14,3 +14,11 @@ print(int(c))
 print(type(a))
 print(type(b))
 print(type(c))
+
+dict_data = {
+  'name': 'minwoo',
+  'age': 20,
+  'city': 'seoul'
+}
+
+print(type(dict_data))
