@@ -13,6 +13,7 @@ app = FastAPI()
 # html 템플릿
 templates_dir = BASE_DIR / "templates"
 templates = Jinja2Templates(directory=templates_dir)
+TITLE = "콜렉터 북북이"
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
@@ -21,7 +22,7 @@ async def root(request: Request):
   # await mongodb.engine.save(book)
 
   # 템플릿 렌더링
-  return templates.TemplateResponse("./index.html", { "request": request, "title":"콜렉터 북북이" })
+  return templates.TemplateResponse("./index.html", { "request": request, "title": TITLE })
 
 @app.get("/search", response_class=HTMLResponse)
 async def search(request: Request, q: str):
@@ -37,22 +38,32 @@ async def search(request: Request, q: str):
   '''
   keyword = q
 
+  if not keyword:
+    context = { "request": request, "title": TITLE, "error": "검색어를 입력해주세요." }
+    return templates.TemplateResponse("./index.html", context)
+
+  if await mongodb.engine.find_one(BookModel, BookModel.keyword == keyword):
+    print("이미 수집된 데이터입니다.")
+    books = await mongodb.engine.find(BookModel, BookModel.keyword == keyword)
+    return templates.TemplateResponse("./index.html", { "request": request, "title": TITLE, "books": books })
+
   naver_book_scraper = NaverBookScraper()
   books = await naver_book_scraper.search(keyword, 10)
   book_models = []
   for book in books:
     book_model = BookModel(
       keyword=keyword,
+      title=book['title'],
       publisher=book['publisher'],
       price=int(book['discount']),
       image=book['image'],
     )
     book_models.append(book_model)
-    
+
   await mongodb.engine.save_all(book_models)
 
 
-  return templates.TemplateResponse("./index.html", { "request": request, "title":"콜렉터 북북이", "keyword": q })
+  return templates.TemplateResponse("./index.html", { "request": request, "title": TITLE, "books": books })
 
 # 이벤트 등록 - 서버 시작 시 실행
 @app.on_event("startup")
