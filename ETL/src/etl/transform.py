@@ -8,35 +8,43 @@ REVENUE_STATUS = { "PAID", "COMPLETED" }
 
 @dataclass
 class TransformResult:
-  customers: pd.DataFrame
+    customers: pd.DataFrame
+    products: pd.DataFrame
+    orders: pd.DataFrame
+    order_items: pd.DataFrame
+    rejects: pd.DataFrame
+    customer_summary: pd.DataFrame
+    monthly_sales: pd.DataFrame
+    product_sales: pd.DataFrame
+    metrics: dict[str, int]
 
-  def _reject(df: pd.DataFrame, mask: pd.Series, source: str, reason: str) -> pd.DataFrame:
+def _reject(df: pd.DataFrame, mask: pd.Series, source: str, reason: str) -> pd.DataFrame:
     # loc[mask]는 mask가 True인 행을 선택하는 연산자
     bad = df.loc[mask].copy()
     if bad.empty:
-      return pd.DataFrame(columns=["source", "record_key", "reason", "raw_record"])
+        return pd.DataFrame(columns=["source", "record_key", "reason", "raw_record"])
     key_columns = [c for c in ["customer_id", "product_id", "order_id", "line_no"] if c in bad.columns]
     return pd.DataFrame({
-      "source": source,
-      # astype(str)은 값을 문자열로 변환하는 연산자
-      "record_key": bad[key_columns].astype(str).agg("/".join, axis=1),
-      "reason": reason,
-      # where(pd.notna(bad), None)은 bad의 값이 NaN 또는 None이 아닌 경우 None으로 바꿔준다.
-      # apply(lambda row: row.to_json(force_ascii=False), axis=1)은 각 행을 JSON 형식으로 변환하는 연산자
-      "raw_record": bad.astype(object).where(pd.notna(bad), None).apply(lambda row: row.to_json(force_ascii=False), axis=1),
+        "source": source,
+        # astype(str)은 값을 문자열로 변환하는 연산자
+        "record_key": bad[key_columns].astype(str).agg("/".join, axis=1),
+        "reason": reason,
+        # where(pd.notna(bad), None)은 bad의 값이 NaN 또는 None이 아닌 경우 None으로 바꿔준다.
+        # apply(lambda row: row.to_json(force_ascii=False), axis=1)은 각 행을 JSON 형식으로 변환하는 연산자
+        "raw_record": bad.astype(object).where(pd.notna(bad), None).apply(lambda row: row.to_json(force_ascii=False), axis=1),
     })
 
-  """
-  Transform the source data.
-  """
-  def transform_sources(frames: dict[str, pd.DataFrame]) -> TransformResult:
+"""
+Transform the source data.
+"""
+def transform_sources(frames: dict[str, pd.DataFrame]) -> TransformResult:
     rejects: list[pd.DataFrame] = []
 
     customers = frames["customers"].copy()
     for col in ["customer_id", "customer_name", "email", "phone", "grade", "city", "marketing_agreed"]:
-      # fillna("")로 pandas에서 비어 있는 값인 NaN 또는 None을 빈 문자열 ""로 바꿔준다.
-      customers[col] = customers[col].fillna("").str.strip()
-    
+        # fillna("")로 pandas에서 비어 있는 값인 NaN 또는 None을 빈 문자열 ""로 바꿔준다.
+        customers[col] = customers[col].fillna("").str.strip()
+
     customers["grade"] = customers["grade"].str.upper()
     # to_datetime()은 문자열을 datetime 형식으로 변환하는 연산자
     # errors="coerce"는 변환 오류가 발생하면 NaN으로 변환하는 옵션
@@ -50,9 +58,9 @@ class TransformResult:
     rejects.append(_reject(customers, bad_customer, "customers.csv", "invalid customer key/date/grade"))
     # loc[~bad_customer]는 bad_customer가 False인 행을 선택하는 연산자
     customers = (customers.loc[~bad_customer]
-                 .sort_values(["customer_id", "updated_at"]
-                 .drop_duplicates("customer_id", keep="last")
-                 .reset_index(drop=True)))
+                    .sort_values(["customer_id", "updated_at"]
+                    .drop_duplicates("customer_id", keep="last")
+                    .reset_index(drop=True)))
 
     products = frames["products"].copy()
     for col in ["product_id", "product_name", "category", "active_yn"]:
@@ -61,7 +69,7 @@ class TransformResult:
         products[col] = pd.to_numeric(products[col], errors="coerce")
     products["updated_at"] = pd.to_datetime(products["updated_at"], errors="coerce")
     bad_product = (products["product_id"].eq("") | products["list_price"].lt(0) |
-                  products["cost_price"].lt(0) | products["updated_at"].isna())
+                    products["cost_price"].lt(0) | products["updated_at"].isna())
     rejects.append(_reject(products, bad_product, "products.csv", "invalid product key/price/date"))
     products = (products.loc[~bad_product]
                 .sort_values(["product_id", "updated_at"])
@@ -81,9 +89,9 @@ class TransformResult:
                 ~orders["customer_id"].isin(known_customers))
     rejects.append(_reject(orders, bad_order, "orders.csv", "invalid order date/status or orphan customer"))
     orders = (orders.loc[~bad_order]
-              .sort_values(["order_id", "updated_at"])
-              .drop_duplicates("order_id", keep="last")
-              .reset_index(drop=True))
+                .sort_values(["order_id", "updated_at"])
+                .drop_duplicates("order_id", keep="last")
+                .reset_index(drop=True))
 
     items = frames["order_items"].copy()
     for col in ["order_id", "product_id"]:
