@@ -3,6 +3,9 @@ import json
 import pandas as pd
 
 
+"""
+Extracts source data from the data directory.
+"""
 def extract_sources(data_dir: Path) -> dict[str, pd.DataFrame]:
   required = ["customers.csv", "products.csv", "orders.csv", "order_items.csv"]
   missing = [name for name in required if not (data_dir / name).exists()]
