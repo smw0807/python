@@ -1,0 +1,9 @@
+:root { font-family: Inter, Pretendard, system-ui, sans-serif; color:#172033; background:#f4f6f9 }
+body { margin:0 } main { max-width:1180px; margin:auto; padding:40px 24px }
+header p { color:#3267d6; font-weight:700; margin:0 } h1 { margin:6px 0 28px; font-size:32px } h2 { font-size:18px; margin:0 0 16px }
+section, article { background:white; border:1px solid #e1e6ef; border-radius:14px; padding:22px; box-shadow:0 4px 16px #1720330c }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; background:transparent; border:0; box-shadow:none; padding:0; margin-bottom:18px }
+table { border-collapse:collapse; width:100%; font-size:14px } th, td { padding:10px 8px; border-bottom:1px solid #edf0f5; text-align:right } th:first-child, td:first-child { text-align:left } th { color:#687386; font-size:12px }
+.toolbar { display:flex; justify-content:space-between; align-items:center } select, button { padding:8px 12px; border:1px solid #ccd4e0; border-radius:8px; background:white }
+nav { display:flex; justify-content:center; align-items:center; gap:14px; margin-top:18px } small { color:#8792a5 } .error { color:#b42318; background:#feeceb; padding:12px; border-radius:8px }
+@media (max-width:800px) { .grid { grid-template-columns:1fr } main { padding:24px 12px } }
