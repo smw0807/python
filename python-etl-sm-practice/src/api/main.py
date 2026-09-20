@@ -36,14 +36,39 @@ def customers(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=10
               grade: str | None = None,
               sort: Literal["total_amount", "-total_amount", "last_order_at", "-last_order_at", "customer_id"] = "-total_amount",
               conn: Connection = Depends(get_conn)):
-    where = "WHERE (:grade IS NULL OR grade = :grade)"
-    params = {"grade": grade, "limit": page_size, "offset": (page - 1) * page_size}
-    total = conn.execute(text(f"SELECT count(*) FROM customer_sales_summary {where}"), params).scalar_one()
-    rows = conn.execute(text(f"""
-      SELECT customer_id, customer_name, grade, city, order_count, total_amount, avg_order_amount, last_order_at
-      FROM customer_sales_summary {where}
-      ORDER BY {SORT_MAP[sort]}, customer_id LIMIT :limit OFFSET :offset
-    """), params).mappings().all()
+    where = ""
+    params = {
+        "limit": page_size,
+        "offset": (page - 1) * page_size,
+    }
+
+    if grade:
+        where = "WHERE grade = :grade"
+        params["grade"] = grade
+
+    total = conn.execute(
+        text(f"SELECT count(*) FROM customer_sales_summary {where}"),
+        params,
+    ).scalar_one()
+
+    rows = conn.execute(
+        text(f"""
+            SELECT
+                customer_id,
+                customer_name,
+                grade,
+                city,
+                order_count,
+                total_amount,
+                avg_order_amount,
+                last_order_at
+            FROM customer_sales_summary
+            {where}
+            ORDER BY {SORT_MAP[sort]}, customer_id
+            LIMIT :limit OFFSET :offset
+        """),
+        params,
+    ).mappings().all()
     return {"items": [dict(row) for row in rows], "page": page, "page_size": page_size, "total": total}
 
 
@@ -78,13 +103,31 @@ def monthly_sales(
 @app.get("/api/sales/products")
 def product_sales(limit: int = Query(10, ge=1, le=100), category: str | None = None,
                   conn: Connection = Depends(get_conn)):
-    rows = conn.execute(text("""
-      SELECT p.product_id, p.product_name, p.category, sum(i.quantity) AS total_quantity,
-             sum(i.line_amount) AS total_amount,
-             sum(i.line_amount - i.quantity * p.cost_price) AS gross_profit
-      FROM fact_order o JOIN fact_order_item i USING(order_id) JOIN dim_product p USING(product_id)
-      WHERE o.status IN ('PAID','COMPLETED') AND (:category IS NULL OR p.category=:category)
-      GROUP BY p.product_id, p.product_name, p.category
-      ORDER BY total_amount DESC LIMIT :limit
-    """), {"category": category, "limit": limit}).mappings().all()
+    category_filter = ""
+    params = {"limit": limit}
+
+    if category:
+        category_filter = "AND p.category = :category"
+        params["category"] = category
+
+    rows = conn.execute(
+        text(f"""
+            SELECT
+                p.product_id,
+                p.product_name,
+                p.category,
+                sum(i.quantity) AS total_quantity,
+                sum(i.line_amount) AS total_amount,
+                sum(i.line_amount - i.quantity * p.cost_price) AS gross_profit
+            FROM fact_order o
+            JOIN fact_order_item i USING (order_id)
+            JOIN dim_product p USING (product_id)
+            WHERE o.status IN ('PAID', 'COMPLETED')
+            {category_filter}
+            GROUP BY p.product_id, p.product_name, p.category
+            ORDER BY total_amount DESC
+            LIMIT :limit
+        """),
+        params,
+    ).mappings().all()
     return [dict(row) for row in rows]
